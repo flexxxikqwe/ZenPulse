@@ -9,7 +9,7 @@ export const AppNavigator = () => {
   const [showMood, setShowMood] = useState(false);
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-zinc-50 shadow-2xl relative overflow-hidden">
+    <div className="max-w-md mx-auto min-h-screen premium-gradient shadow-2xl relative overflow-hidden">
       <MeditationScreen 
         onOpenPaywall={() => setShowPaywall(true)} 
         onOpenMood={() => setShowMood(true)}

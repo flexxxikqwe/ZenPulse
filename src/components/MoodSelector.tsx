@@ -14,26 +14,30 @@ const moods: Mood[] = [
 ];
 
 interface Props {
-  onSelect: (mood: string, affirmation: string) => void;
+  onSelect: (mood: string) => void;
   selectedMood: string | null;
 }
 
 export const MoodSelector = ({ onSelect, selectedMood }: Props) => {
   return (
-    <div className="flex justify-between gap-4">
+    <div className="flex justify-between gap-3 sm:gap-4">
       {moods.map((mood) => (
         <motion.button
           key={mood.label}
           whileTap={{ scale: 0.95 }}
-          onClick={() => onSelect(mood.label, mood.affirmation)}
-          className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-2xl transition-all border ${
+          onClick={() => onSelect(mood.label)}
+          className={`flex-1 flex flex-col items-center justify-center gap-3 p-4 rounded-[20px] transition-all border min-h-[110px] ${
             selectedMood === mood.label
-              ? 'bg-emerald-50 border-emerald-200'
-              : 'bg-zinc-50 border-zinc-100 hover:bg-zinc-100'
+              ? 'bg-primary/20 border-primary shadow-lg shadow-primary/10'
+              : 'bg-white/5 border-white/10 hover:bg-white/10'
           }`}
         >
-          <span className="text-3xl">{mood.emoji}</span>
-          <span className="text-xs font-bold text-zinc-600 uppercase tracking-tight">{mood.label}</span>
+          <span className="text-3xl sm:text-4xl shrink-0 drop-shadow-lg">{mood.emoji}</span>
+          <span className={`text-[11px] sm:text-xs font-bold uppercase tracking-widest text-center leading-tight ${
+            selectedMood === mood.label ? 'text-primary' : 'text-white/40'
+          }`}>
+            {mood.label}
+          </span>
         </motion.button>
       ))}
     </div>

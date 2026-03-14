@@ -1,1 +1,31 @@
 @import "tailwindcss";
+
+@theme {
+  --color-primary: #8B5CF6;
+  --color-secondary: #22C55E;
+  --color-bg-start: #0F172A;
+  --color-bg-mid: #1E293B;
+  --color-bg-end: #312E81;
+}
+
+@layer base {
+  body {
+    @apply bg-bg-start text-white antialiased;
+  }
+}
+
+.premium-gradient {
+  background: linear-gradient(180deg, var(--color-bg-start) 0%, var(--color-bg-mid) 50%, var(--color-bg-end) 100%);
+}
+
+.glass-card {
+  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
