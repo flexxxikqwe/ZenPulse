@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Check, Sparkles, X } from 'lucide-react';
 import { useSubscription } from '../hooks/useSubscription';
+import { useTheme } from '../context/ThemeContext';
 
 interface Props {
   onClose: () => void;
@@ -9,6 +10,8 @@ interface Props {
 
 export const PaywallScreen = ({ onClose }: Props) => {
   const { setSubscribed } = useSubscription();
+  const { currentTheme } = useTheme();
+  const isDark = currentTheme === 'dark';
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('yearly');
 
   const handleSubscribe = () => {
@@ -22,38 +25,47 @@ export const PaywallScreen = ({ onClose }: Props) => {
     "Exclusive sleep and focus tracks"
   ];
 
+  // Theme-aware style variables
+  const textPrimary = isDark ? 'text-[#F3F4F6]' : 'text-[#111111]';
+  const textSecondary = isDark ? 'text-[#9CA3AF]' : 'text-[#6B7280]';
+  const accentColor = isDark ? 'bg-[#8B9CFF]' : 'bg-[#5C6AC4]';
+  const borderColor = isDark ? 'border-white/10' : 'border-black/5';
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 50 }}
-      className="fixed inset-0 z-50 premium-gradient flex flex-col overflow-y-auto no-scrollbar"
+      className={`fixed inset-0 z-50 flex flex-col overflow-y-auto no-scrollbar transition-colors duration-300 ${isDark ? 'bg-[#0F1115]' : 'bg-[#F7F7F8]'}`}
     >
-      {/* SafeAreaView Simulation */}
-      <div className="pt-16 pb-12 px-6 flex flex-col min-h-full max-w-md mx-auto w-full">
+      <div className="pt-16 pb-12 px-8 flex flex-col min-h-full max-w-md mx-auto w-full">
         
         {/* Close Button */}
-        <div className="flex justify-end mb-6">
+        <div className="flex justify-end mb-8">
           <button 
             onClick={onClose}
-            className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-colors active:scale-90 shrink-0 backdrop-blur-md border border-white/10"
+            className={`w-10 h-10 rounded-full flex items-center justify-center active:scale-90 shrink-0 ${
+              isDark ? 'bg-[#1A1D24] text-[#9CA3AF]' : 'bg-white text-[#6B7280] shadow-sm border border-black/5'
+            }`}
             aria-label="Close"
           >
-            <X size={28} />
+            <X size={20} />
           </button>
         </div>
 
         {/* Header Section */}
         <div className="mb-12 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-[28px] bg-primary/20 mb-8 border border-primary/20 shadow-2xl shadow-primary/20">
-            <Sparkles size={40} className="text-primary" />
+          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-[24px] mb-8 border ${
+            isDark ? 'bg-[#8B9CFF]/10 border-[#8B9CFF]/20' : 'bg-[#5C6AC4]/10 border-[#5C6AC4]/20'
+          }`}>
+            <Sparkles size={32} className={isDark ? 'text-[#8B9CFF]' : 'text-[#5C6AC4]'} />
           </div>
-          <h1 className="text-[32px] font-bold text-white mb-4 tracking-tight leading-tight">ZenPulse Premium</h1>
-          <p className="text-white/60 text-lg font-medium">Unlock your full meditation experience.</p>
+          <h1 className={`text-3xl font-bold mb-3 tracking-tight leading-tight ${textPrimary}`}>ZenPulse Premium</h1>
+          <p className={`text-base font-medium ${textSecondary}`}>Unlock your full meditation experience.</p>
         </div>
 
         {/* Benefits List */}
-        <div className="space-y-6 mb-12 px-2">
+        <div className="space-y-5 mb-12 px-2">
           {benefits.map((benefit, i) => (
             <motion.div 
               key={i} 
@@ -62,10 +74,12 @@ export const PaywallScreen = ({ onClose }: Props) => {
               transition={{ delay: i * 0.1 }}
               className="flex items-center gap-4"
             >
-              <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center shrink-0 border border-secondary/20">
-                <Check size={14} className="text-secondary" strokeWidth={3} />
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                isDark ? 'bg-[#A3B18A]/20' : 'bg-[#A3B18A]/20'
+              }`}>
+                <Check size={12} className="text-[#A3B18A]" strokeWidth={3} />
               </div>
-              <span className="text-white/90 font-medium text-base">{benefit}</span>
+              <span className={`font-medium text-sm ${textPrimary}`}>{benefit}</span>
             </motion.div>
           ))}
         </div>
@@ -75,43 +89,61 @@ export const PaywallScreen = ({ onClose }: Props) => {
           {/* Monthly Plan */}
           <button 
             onClick={() => setSelectedPlan('monthly')}
-            className={`w-full p-6 rounded-[20px] border-2 transition-all text-left flex items-center justify-between ${
+            className={`w-full p-6 rounded-[24px] border transition-all text-left flex items-center justify-between ${
               selectedPlan === 'monthly' 
-                ? 'border-primary bg-primary/10 shadow-xl shadow-primary/10' 
-                : 'border-white/10 bg-white/5'
+                ? `${accentColor} border-transparent shadow-lg scale-[1.02]` 
+                : `${isDark ? 'bg-[#1A1D24]' : 'bg-white'} ${borderColor}`
             }`}
           >
             <div>
-              <h3 className="text-white font-bold text-lg mb-1">Monthly Plan</h3>
-              <p className="text-white/50 text-sm font-medium">$6.99 / month</p>
+              <h3 className={`font-bold text-base mb-0.5 ${selectedPlan === 'monthly' ? 'text-white' : textPrimary}`}>
+                Monthly Plan
+              </h3>
+              <p className={`text-xs font-medium ${selectedPlan === 'monthly' ? 'text-white/80' : textSecondary}`}>
+                $6.99 / month
+              </p>
             </div>
-            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-              selectedPlan === 'monthly' ? 'border-primary' : 'border-white/20'
+            <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-colors ${
+              selectedPlan === 'monthly' 
+                ? 'bg-white border-white' 
+                : borderColor
             }`}>
-              {selectedPlan === 'monthly' && <div className="w-3 h-3 rounded-full bg-primary" />}
+              {selectedPlan === 'monthly' && <Check size={14} className={isDark ? 'text-[#8B9CFF]' : 'text-[#5C6AC4]'} strokeWidth={4} />}
             </div>
           </button>
 
           {/* Yearly Plan */}
           <button 
             onClick={() => setSelectedPlan('yearly')}
-            className={`w-full p-6 rounded-[20px] border-2 transition-all text-left relative flex items-center justify-between ${
+            className={`w-full p-6 rounded-[24px] border transition-all text-left relative flex items-center justify-between ${
               selectedPlan === 'yearly' 
-                ? 'border-primary bg-primary/10 shadow-[0_0_30px_rgba(139,92,246,0.2)]' 
-                : 'border-white/10 bg-white/5'
+                ? `${accentColor} border-transparent shadow-lg scale-[1.02]` 
+                : `${isDark ? 'bg-[#1A1D24]' : 'bg-white'} ${borderColor}`
             }`}
           >
-            <div className="absolute -top-3 right-8 bg-secondary px-4 py-1.5 rounded-full shadow-lg shadow-secondary/20">
-              <span className="text-[11px] font-black text-white uppercase tracking-wider">Best Value</span>
+            <div className={`absolute -top-3 right-6 px-3 py-1 rounded-full shadow-sm ${
+              selectedPlan === 'yearly' ? 'bg-white' : accentColor
+            }`}>
+              <span className={`text-[9px] font-bold uppercase tracking-widest ${
+                selectedPlan === 'yearly' ? (isDark ? 'text-[#8B9CFF]' : 'text-[#5C6AC4]') : 'text-white'
+              }`}>
+                Best Value
+              </span>
             </div>
             <div>
-              <h3 className="text-white font-bold text-lg mb-1">Yearly Plan</h3>
-              <p className="text-white/50 text-sm font-medium">$39.99 / year</p>
+              <h3 className={`font-bold text-base mb-0.5 ${selectedPlan === 'yearly' ? 'text-white' : textPrimary}`}>
+                Yearly Plan
+              </h3>
+              <p className={`text-xs font-medium ${selectedPlan === 'yearly' ? 'text-white/80' : textSecondary}`}>
+                $39.99 / year
+              </p>
             </div>
-            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-              selectedPlan === 'yearly' ? 'border-primary' : 'border-white/20'
+            <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-colors ${
+              selectedPlan === 'yearly' 
+                ? 'bg-white border-white' 
+                : borderColor
             }`}>
-              {selectedPlan === 'yearly' && <div className="w-3 h-3 rounded-full bg-primary" />}
+              {selectedPlan === 'yearly' && <Check size={14} className={isDark ? 'text-[#8B9CFF]' : 'text-[#5C6AC4]'} strokeWidth={4} />}
             </div>
           </button>
         </div>
@@ -120,11 +152,11 @@ export const PaywallScreen = ({ onClose }: Props) => {
         <div className="mt-auto pt-8">
           <button 
             onClick={handleSubscribe}
-            className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-[56px] rounded-[20px] transition-all active:scale-[0.98] shadow-2xl shadow-primary/30 mb-6 text-lg"
+            className={`${accentColor} text-white font-bold w-full h-[64px] rounded-[24px] transition-all active:scale-[0.98] shadow-lg mb-6 text-base uppercase tracking-widest`}
           >
             Start Free Trial
           </button>
-          <p className="text-center text-white/30 text-[11px] uppercase tracking-[0.15em] font-bold">
+          <p className={`text-center text-[10px] uppercase tracking-[0.2em] font-bold opacity-40 ${textPrimary}`}>
             Cancel anytime. Secure payment.
           </p>
         </div>

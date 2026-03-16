@@ -4,11 +4,17 @@
  */
 
 import { AppNavigator } from './navigation/AppNavigator';
+import { ThemeProvider } from './context/ThemeContext';
+import { UserProfileProvider } from './context/UserProfileContext';
 
 export default function App() {
   return (
-    <div className="bg-zinc-200 min-h-screen md:py-8">
-      <AppNavigator />
-    </div>
+    <ThemeProvider>
+      <UserProfileProvider>
+        <div className="bg-bg-soft dark:bg-dark-bg-soft min-h-screen md:py-8 transition-colors duration-300">
+          <AppNavigator />
+        </div>
+      </UserProfileProvider>
+    </ThemeProvider>
   );
 }

@@ -1,25 +1,50 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #8B5CF6;
-  --color-secondary: #22C55E;
-  --color-bg-start: #0F172A;
-  --color-bg-mid: #1E293B;
-  --color-bg-end: #312E81;
+  --color-primary: #8E9AAF;
+  --color-secondary: #A3B18A;
+  
+  /* Light Theme */
+  --color-bg-main: #F7F7F8;
+  --color-bg-soft: #FFFFFF;
+  --color-text-main: #111111;
+  --color-text-muted: #6B7280;
+  --color-accent: #5C6AC4;
+  --color-border-subtle: rgba(0, 0, 0, 0.05);
+
+  /* Dark Theme Overrides */
+  --color-dark-bg-main: #0F1115;
+  --color-dark-bg-soft: #1A1D24;
+  --color-dark-text-main: #F3F4F6;
+  --color-dark-text-muted: #9CA3AF;
+  --color-dark-accent: #8B9CFF;
+  --color-dark-border-subtle: rgba(255, 255, 255, 0.05);
 }
 
 @layer base {
   body {
-    @apply bg-bg-start text-white antialiased;
+    @apply bg-bg-main text-text-main antialiased transition-colors duration-300;
+  }
+  
+  .dark body {
+    @apply bg-dark-bg-main text-dark-text-main;
   }
 }
 
 .premium-gradient {
-  background: linear-gradient(180deg, var(--color-bg-start) 0%, var(--color-bg-mid) 50%, var(--color-bg-end) 100%);
+  @apply bg-bg-main;
+}
+
+.dark .premium-gradient {
+  @apply bg-dark-bg-main;
 }
 
 .glass-card {
-  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
+  @apply bg-bg-soft border border-border-subtle shadow-sm;
+}
+
+.dark .glass-card {
+  @apply bg-dark-bg-soft border border-dark-border-subtle shadow-none;
 }
 
 .no-scrollbar::-webkit-scrollbar {

@@ -20,21 +20,21 @@ interface Props {
 
 export const MoodSelector = ({ onSelect, selectedMood }: Props) => {
   return (
-    <div className="flex justify-between gap-3 sm:gap-4">
+    <div className="flex justify-between gap-4">
       {moods.map((mood) => (
         <motion.button
           key={mood.label}
           whileTap={{ scale: 0.95 }}
           onClick={() => onSelect(mood.label)}
-          className={`flex-1 flex flex-col items-center justify-center gap-3 p-4 rounded-[20px] transition-all border min-h-[110px] ${
+          className={`flex-1 flex flex-col items-center justify-center gap-4 p-5 rounded-[28px] transition-all border min-h-[120px] ${
             selectedMood === mood.label
-              ? 'bg-primary/20 border-primary shadow-lg shadow-primary/10'
-              : 'bg-white/5 border-white/10 hover:bg-white/10'
+              ? 'bg-primary/10 border-primary shadow-sm'
+              : 'bg-bg-soft border-white hover:bg-white'
           }`}
         >
-          <span className="text-3xl sm:text-4xl shrink-0 drop-shadow-lg">{mood.emoji}</span>
-          <span className={`text-[11px] sm:text-xs font-bold uppercase tracking-widest text-center leading-tight ${
-            selectedMood === mood.label ? 'text-primary' : 'text-white/40'
+          <span className="text-4xl shrink-0">{mood.emoji}</span>
+          <span className={`text-[10px] font-bold uppercase tracking-[0.15em] text-center leading-tight ${
+            selectedMood === mood.label ? 'text-text-main' : 'text-text-muted/50'
           }`}>
             {mood.label}
           </span>
