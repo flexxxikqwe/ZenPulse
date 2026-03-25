@@ -54,3 +54,18 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Global Focus Styles */
+button:focus-visible, 
+a:focus-visible, 
+[role="button"]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.dark button:focus-visible, 
+.dark a:focus-visible, 
+.dark [role="button"]:focus-visible {
+  outline: 2px solid var(--color-dark-accent);
+  outline-offset: 2px;
+}
