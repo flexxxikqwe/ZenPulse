@@ -11,11 +11,16 @@ interface UserProfileContextType {
   completeMeditation: (meditationId: string, minutes: number) => void;
   togglePremium: () => void;
   upgradeSubscription: (plan: 'monthly' | 'yearly') => void;
+  setSubscriptionNone: () => void;
+  cancelSubscription: () => void;
+  reactivateSubscription: () => void;
+  changeSubscriptionPlan: (plan: 'monthly' | 'yearly') => void;
   restoreSubscription: () => void;
   setRecommendedMeditationId: (id: string) => void;
   completeOnboarding: (goals: string[], preferredDuration: number) => void;
   updateDailyGoal: (minutes: number) => void;
   toggleFavorite: (meditationId: string) => void;
+  updateProfileInfo: (username: string, email: string) => void;
   resetProfile: () => void;
 }
 
@@ -30,6 +35,7 @@ const DEFAULT_PROFILE: UserProfile = {
     currentPlan: 'none',
     billingCycle: 'none',
     trialActive: false,
+    autoRenew: false,
     renewsAt: null,
     expiresAt: null,
     source: 'mock',
@@ -74,6 +80,7 @@ export const UserProfileProvider: React.FC<{ children: React.ReactNode }> = ({ c
               currentPlan: 'yearly',
               billingCycle: 'yearly',
               trialActive: false,
+              autoRenew: true,
               renewsAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
               expiresAt: null,
               source: 'mock',
@@ -200,14 +207,11 @@ export const UserProfileProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const togglePremium = useCallback(() => {
     setUserProfile((prev) => {
-      const nextIsPremium = !prev.isPremium;
+      const nextIsPremium = !subscriptionService.isPremium(prev);
       return { 
         ...prev, 
         isPremium: nextIsPremium,
-        subscription: nextIsPremium ? subscriptionService.mockUpgrade('yearly') : {
-          ...DEFAULT_PROFILE.subscription,
-          status: 'none'
-        }
+        subscription: nextIsPremium ? subscriptionService.mockUpgrade('yearly') : subscriptionService.mockSetNone()
       };
     });
   }, []);
@@ -218,6 +222,35 @@ export const UserProfileProvider: React.FC<{ children: React.ReactNode }> = ({ c
       ...prev,
       isPremium: true,
       subscription: newSub
+    }));
+  }, []);
+
+  const setSubscriptionNone = useCallback(() => {
+    setUserProfile(prev => ({
+      ...prev,
+      isPremium: false,
+      subscription: subscriptionService.mockSetNone()
+    }));
+  }, []);
+
+  const cancelSubscription = useCallback(() => {
+    setUserProfile(prev => ({
+      ...prev,
+      subscription: subscriptionService.mockCancel(prev.subscription)
+    }));
+  }, []);
+
+  const reactivateSubscription = useCallback(() => {
+    setUserProfile(prev => ({
+      ...prev,
+      subscription: subscriptionService.mockReactivate(prev.subscription)
+    }));
+  }, []);
+
+  const changeSubscriptionPlan = useCallback((plan: 'monthly' | 'yearly') => {
+    setUserProfile(prev => ({
+      ...prev,
+      subscription: subscriptionService.mockChangePlan(prev.subscription, plan)
     }));
   }, []);
 
@@ -263,6 +296,14 @@ export const UserProfileProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
   }, []);
 
+  const updateProfileInfo = useCallback((username: string, email: string) => {
+    setUserProfile(prev => ({
+      ...prev,
+      username,
+      email
+    }));
+  }, []);
+
   const resetProfile = useCallback(async () => {
     await profileService.resetProfile();
     setUserProfile(DEFAULT_PROFILE);
@@ -276,11 +317,16 @@ export const UserProfileProvider: React.FC<{ children: React.ReactNode }> = ({ c
     completeMeditation, 
     togglePremium,
     upgradeSubscription,
+    setSubscriptionNone,
+    cancelSubscription,
+    reactivateSubscription,
+    changeSubscriptionPlan,
     restoreSubscription,
     setRecommendedMeditationId,
     completeOnboarding,
     updateDailyGoal,
     toggleFavorite,
+    updateProfileInfo,
     resetProfile
   }), [
     userProfile, 
@@ -290,10 +336,15 @@ export const UserProfileProvider: React.FC<{ children: React.ReactNode }> = ({ c
     completeMeditation, 
     togglePremium,
     upgradeSubscription,
+    setSubscriptionNone,
+    cancelSubscription,
+    reactivateSubscription,
+    changeSubscriptionPlan,
     restoreSubscription,
     completeOnboarding,
     updateDailyGoal,
     toggleFavorite,
+    updateProfileInfo,
     resetProfile
   ]);
 

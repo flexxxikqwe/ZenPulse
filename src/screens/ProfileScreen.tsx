@@ -1,6 +1,22 @@
-import React from 'react';
-import { motion, useReducedMotion } from 'motion/react';
-import { ArrowLeft, User, Award, Clock, CheckCircle2, Settings, Edit3, LogOut, Trophy, Target, Sparkles, Bookmark } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+import { 
+  ArrowLeft, 
+  User, 
+  Award, 
+  Clock, 
+  CheckCircle2, 
+  Settings, 
+  Edit3, 
+  LogOut, 
+  Trophy, 
+  Target, 
+  Sparkles, 
+  Bookmark,
+  Mail,
+  X,
+  Check
+} from 'lucide-react';
 import { useUserProfile } from '../context/UserProfileContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../components/ToastProvider';
@@ -17,7 +33,7 @@ interface ProfileScreenProps {
 }
 
 export const ProfileScreen = ({ onBack, onResumeMeditation, onOpenPaywall, onOpenSettings, onViewFavorites }: ProfileScreenProps) => {
-  const { userProfile } = useUserProfile();
+  const { userProfile, updateProfileInfo } = useUserProfile();
   const { currentTheme } = useTheme();
   const { showToast } = useToast();
   const isDark = currentTheme === 'dark';
@@ -25,13 +41,29 @@ export const ProfileScreen = ({ onBack, onResumeMeditation, onOpenPaywall, onOpe
   const subLabel = subscriptionService.getSubscriptionLabel(userProfile);
   const shouldReduceMotion = useReducedMotion();
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(userProfile?.username || '');
+  const [editEmail, setEditEmail] = useState(userProfile?.email || '');
+
   const dailyProgress = React.useMemo(() => {
     if (!userProfile?.dailyGoalMinutes) return 0;
     return Math.min(1, (userProfile.totalMinutesToday || 0) / userProfile.dailyGoalMinutes);
   }, [userProfile?.totalMinutesToday, userProfile?.dailyGoalMinutes]);
 
   const handleEditProfile = () => {
-    showToast('Profile editing will be available in the next update.', 'info');
+    setEditName(userProfile?.username || '');
+    setEditEmail(userProfile?.email || '');
+    setIsEditing(true);
+  };
+
+  const handleSaveProfile = () => {
+    if (!editName.trim()) {
+      showToast('Name cannot be empty', 'error');
+      return;
+    }
+    updateProfileInfo(editName.trim(), editEmail.trim());
+    showToast('Profile updated successfully', 'success');
+    setIsEditing(false);
   };
 
   const handleLogout = () => {
@@ -267,12 +299,101 @@ export const ProfileScreen = ({ onBack, onResumeMeditation, onOpenPaywall, onOpe
               isDark ? 'border-white/10' : 'border-black/10'
             }`}>
               <p className={`text-sm font-medium ${isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'}`}>
-                No meditations started yet.
+                No sessions started yet.
               </p>
             </div>
           )}
         </section>
       </div>
+      {/* Edit Profile Modal */}
+      <AnimatePresence>
+        {isEditing && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className={`w-full max-w-sm rounded-[32px] overflow-hidden border shadow-2xl ${
+                isDark ? 'bg-[#1A1D24] border-white/10' : 'bg-white border-black/5'
+              }`}
+            >
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className={`text-lg font-bold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
+                    Edit Profile
+                  </h3>
+                  <button 
+                    onClick={() => setIsEditing(false)}
+                    className={`p-2 rounded-full ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
+                  >
+                    <X size={20} className="opacity-50" />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className={`text-[10px] font-black uppercase tracking-widest mb-2 block ${isDark ? 'text-[#9CA3AF]' : 'text-[#6B7280]'}`}>
+                      Display Name
+                    </label>
+                    <div className="relative">
+                      <User size={16} className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDark ? 'text-white/30' : 'text-black/30'}`} />
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Your name"
+                        className={`w-full pl-12 pr-4 py-4 rounded-2xl font-bold text-sm outline-none border transition-all ${
+                          isDark 
+                            ? 'bg-white/5 border-white/10 text-white focus:border-[#8B9CFF]' 
+                            : 'bg-black/5 border-black/5 text-[#111111] focus:border-[#5C6AC4]'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={`text-[10px] font-black uppercase tracking-widest mb-2 block ${isDark ? 'text-[#9CA3AF]' : 'text-[#6B7280]'}`}>
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail size={16} className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDark ? 'text-white/30' : 'text-black/30'}`} />
+                      <input
+                        type="email"
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        placeholder="your@email.com"
+                        className={`w-full pl-12 pr-4 py-4 rounded-2xl font-bold text-sm outline-none border transition-all ${
+                          isDark 
+                            ? 'bg-white/5 border-white/10 text-white focus:border-[#8B9CFF]' 
+                            : 'bg-black/5 border-black/5 text-[#111111] focus:border-[#5C6AC4]'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-4 flex flex-col gap-3">
+                    <button 
+                      onClick={handleSaveProfile}
+                      className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                    >
+                      <Check size={18} />
+                      Save Changes
+                    </button>
+                    <button 
+                      onClick={() => setIsEditing(false)}
+                      className={`w-full py-4 rounded-2xl font-bold text-sm active:scale-[0.98] transition-all ${
+                        isDark ? 'bg-white/5 text-[#F3F4F6]' : 'bg-black/5 text-[#111111]'
+                      }`}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

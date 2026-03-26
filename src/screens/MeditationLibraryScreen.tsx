@@ -18,8 +18,8 @@ interface Props {
   onOpenSettings: () => void;
   onOpenProfile: () => void;
   onSelectMeditation: (meditation: Meditation) => void;
-  viewMode?: 'browse' | 'saved';
-  onViewModeChange?: (mode: 'browse' | 'saved') => void;
+  viewMode?: 'explore' | 'saved';
+  onViewModeChange?: (mode: 'explore' | 'saved') => void;
 }
 
 export const MeditationLibraryScreen = React.memo(({ 
@@ -38,7 +38,7 @@ export const MeditationLibraryScreen = React.memo(({
   const shouldReduceMotion = useReducedMotion();
   const [allMeditations, setAllMeditations] = useState<Meditation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [localViewMode, setLocalViewMode] = useState<'browse' | 'saved'>('browse');
+  const [localViewMode, setLocalViewMode] = useState<'explore' | 'saved'>('explore');
 
   const viewMode = controlledViewMode || localViewMode;
 
@@ -75,7 +75,7 @@ export const MeditationLibraryScreen = React.memo(({
     fetchMeditations();
   }, []);
 
-  const handleSwitchMode = (mode: 'browse' | 'saved') => {
+  const handleSwitchMode = (mode: 'explore' | 'saved') => {
     if (onViewModeChange) {
       onViewModeChange(mode);
     } else {
@@ -351,14 +351,14 @@ export const MeditationLibraryScreen = React.memo(({
             isDark ? 'bg-[#1A1D24] border-white/5' : 'bg-white border-black/5'
           }`}>
             <button
-              onClick={() => handleSwitchMode('browse')}
+              onClick={() => handleSwitchMode('explore')}
               className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                viewMode === 'browse'
+                viewMode === 'explore'
                   ? (isDark ? 'bg-white text-[#0F1115] shadow-lg' : 'bg-[#111111] text-white shadow-lg')
                   : (isDark ? 'text-[#9CA3AF] hover:text-[#F3F4F6]' : 'text-[#4B5563] hover:text-[#111111]')
               }`}
             >
-              Browse
+              Explore
             </button>
             <button
               onClick={() => handleSwitchMode('saved')}
@@ -392,7 +392,7 @@ export const MeditationLibraryScreen = React.memo(({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={viewMode === 'saved' ? "Search your collection..." : "Search meditations, instructors..."}
+            placeholder={viewMode === 'saved' ? "Search your collection..." : "Search sessions, instructors..."}
             className={`w-full h-11 pl-11 pr-11 rounded-2xl border text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-primary/20 ${
               isDark 
                 ? 'bg-[#1A1D24] border-white/5 text-[#F3F4F6] placeholder-[#9CA3AF]/40' 
@@ -478,7 +478,7 @@ export const MeditationLibraryScreen = React.memo(({
             }`} />
             <p className={`text-xs font-bold uppercase tracking-widest ${
               isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'
-            }`}>Loading Library...</p>
+            }`}>Preparing your space...</p>
           </div>
         ) : (
           <AnimatePresence mode="popLayout">
@@ -597,12 +597,12 @@ export const MeditationLibraryScreen = React.memo(({
                       Save sessions you love to find them quickly later.
                     </p>
                     <button
-                      onClick={() => handleSwitchMode('browse')}
+                      onClick={() => handleSwitchMode('explore')}
                       className={`mt-8 px-8 py-3 rounded-full font-bold text-sm transition-all focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 outline-none ${
                         isDark ? 'bg-white/10 text-[#F3F4F6]' : 'bg-black/10 text-[#111111]'
                       }`}
                     >
-                      Explore Meditations
+                      Explore Sessions
                     </button>
                   </div>
                 )}

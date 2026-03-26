@@ -10,8 +10,14 @@ import { subscriptionService } from '../services/subscriptionService';
 interface MeditationDetailViewProps {
   meditation: Meditation;
   onBack: () => void;
-  onStart: (meditation: Meditation) => void;
+  onStart: (meditation: Meditation, options: SessionOptions) => void;
   onOpenPaywall: () => void;
+}
+
+export interface SessionOptions {
+  gentleStart: boolean;
+  focusMode: boolean;
+  tone: 'calm' | 'focus' | 'energy';
 }
 
 export const MeditationDetailView = ({ 
@@ -29,6 +35,12 @@ export const MeditationDetailView = ({
   const isLocked = meditation.premiumRequired && !isPremiumUser;
   const isFavorite = (userProfile?.favoriteIds || []).includes(meditation.id);
 
+  const [sessionOptions, setSessionOptions] = React.useState<SessionOptions>({
+    gentleStart: true,
+    focusMode: true,
+    tone: 'calm'
+  });
+
   const handleToggleFavorite = () => {
     toggleFavorite(meditation.id);
     showToast(isFavorite ? 'Removed from favorites' : 'Added to favorites', 'success');
@@ -38,8 +50,20 @@ export const MeditationDetailView = ({
     if (isLocked) {
       onOpenPaywall();
     } else {
-      onStart(meditation);
+      onStart(meditation, sessionOptions);
     }
+  };
+
+  const toggleGentleStart = () => {
+    setSessionOptions(prev => ({ ...prev, gentleStart: !prev.gentleStart }));
+  };
+
+  const toggleFocusMode = () => {
+    setSessionOptions(prev => ({ ...prev, focusMode: !prev.focusMode }));
+  };
+
+  const setTone = (tone: SessionOptions['tone']) => {
+    setSessionOptions(prev => ({ ...prev, tone }));
   };
 
   return (
@@ -141,7 +165,7 @@ export const MeditationDetailView = ({
 
         {/* Description */}
         <div className="mb-10">
-          <h2 className={`text-xs font-black uppercase tracking-widest mb-4 ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
+          <h2 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-4 ${isDark ? 'text-[#8B9CFF]' : 'text-[#5C6AC4]'}`}>
             About this session
           </h2>
           <p className={`text-sm leading-relaxed ${isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'}`}>
@@ -149,16 +173,101 @@ export const MeditationDetailView = ({
           </p>
         </div>
 
+        {/* Session Options */}
+        {!isLocked && (
+          <div className={`mb-10 p-6 rounded-[32px] border border-dashed transition-colors duration-300 ${
+            isDark ? 'bg-[#1A1D24]/40 border-white/10' : 'bg-white border-black/5 shadow-sm'
+          }`}>
+            <h2 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-6 text-center ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
+              Session Options
+            </h2>
+            
+            <div className="space-y-6">
+              {/* Tone Selection */}
+              <div>
+                <label className={`text-[9px] font-black uppercase tracking-widest block mb-3 ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
+                  Session Tone
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['calm', 'focus', 'energy'] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTone(t)}
+                      className={`py-2 rounded-xl text-[8px] font-black uppercase tracking-tighter transition-all border ${
+                        sessionOptions.tone === t
+                          ? (isDark ? 'bg-[#8B9CFF] text-black border-[#8B9CFF]' : 'bg-[#5C6AC4] text-white border-[#5C6AC4]')
+                          : (isDark ? 'bg-white/5 text-[#9CA3AF] border-white/10' : 'bg-black/5 text-[#4B5563] border-black/5')
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Gentle Start Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className={`text-[9px] font-black uppercase tracking-widest block ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
+                    Gentle Start
+                  </label>
+                  <span className={`text-[8px] font-medium opacity-50 ${isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'}`}>
+                    30s gradual volume fade-in
+                  </span>
+                </div>
+                <button 
+                  onClick={toggleGentleStart}
+                  className={`w-10 h-5 rounded-full relative p-1 transition-colors ${
+                    sessionOptions.gentleStart 
+                      ? (isDark ? 'bg-[#8B9CFF]' : 'bg-[#5C6AC4]') 
+                      : (isDark ? 'bg-white/10' : 'bg-black/10')
+                  }`}
+                >
+                  <motion.div 
+                    animate={{ x: sessionOptions.gentleStart ? 20 : 0 }}
+                    className="w-3 h-3 rounded-full bg-white" 
+                  />
+                </button>
+              </div>
+
+              {/* Focus Mode Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className={`text-[9px] font-black uppercase tracking-widest block ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
+                    Focus Mode
+                  </label>
+                  <span className={`text-[8px] font-medium opacity-50 ${isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'}`}>
+                    Silence notifications (reminder)
+                  </span>
+                </div>
+                <button 
+                  onClick={toggleFocusMode}
+                  className={`w-10 h-5 rounded-full relative p-1 transition-colors ${
+                    sessionOptions.focusMode 
+                      ? (isDark ? 'bg-[#8B9CFF]' : 'bg-[#5C6AC4]') 
+                      : (isDark ? 'bg-white/10' : 'bg-black/10')
+                  }`}
+                >
+                  <motion.div 
+                    animate={{ x: sessionOptions.focusMode ? 20 : 0 }}
+                    className="w-3 h-3 rounded-full bg-white" 
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Benefits */}
         {meditation.benefits && meditation.benefits.length > 0 && (
           <div className="mb-10">
-            <h2 className={`text-xs font-black uppercase tracking-widest mb-4 ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
+            <h2 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-4 ${isDark ? 'text-[#8B9CFF]' : 'text-[#5C6AC4]'}`}>
               Key Benefits
             </h2>
             <div className="space-y-3">
               {meditation.benefits.map((benefit, idx) => (
                 <div key={idx} className="flex items-center gap-3">
-                  <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+                  <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
                   <span className={`text-sm font-medium ${isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'}`}>
                     {benefit}
                   </span>
@@ -173,6 +282,11 @@ export const MeditationDetailView = ({
       <div className={`fixed bottom-0 left-0 right-0 p-8 pt-4 pb-10 z-20 max-w-md mx-auto ${
         isDark ? 'bg-gradient-to-t from-[#0F1115] via-[#0F1115] to-transparent' : 'bg-gradient-to-t from-[#F7F7F8] via-[#F7F7F8] to-transparent'
       }`}>
+        {!isLocked && (
+          <p className={`text-center text-[10px] font-black uppercase tracking-[0.2em] mb-4 opacity-40 ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
+            Ready to start?
+          </p>
+        )}
         <button
           onClick={handleStartClick}
           className={`w-full h-16 rounded-[24px] flex items-center justify-center gap-3 font-bold uppercase tracking-widest shadow-2xl active:scale-[0.98] transition-all ${

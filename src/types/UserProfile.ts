@@ -15,6 +15,7 @@ export interface SubscriptionInfo {
   currentPlan: SubscriptionPlan;
   billingCycle: SubscriptionPlan;
   trialActive: boolean;
+  autoRenew: boolean;
   renewsAt: string | null;
   expiresAt: string | null;
   source: 'mock' | 'server';

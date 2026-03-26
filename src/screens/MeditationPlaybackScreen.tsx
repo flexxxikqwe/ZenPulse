@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
-import { ArrowLeft, Play, Pause, RotateCcw, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+import { ArrowLeft, Play, Pause, RotateCcw, Loader2, AlertCircle, CheckCircle2, SkipBack, SkipForward, BellOff, X } from 'lucide-react';
 import { SessionCompleteModal } from '../components/SessionCompleteModal';
 import { Meditation } from '../data/meditations';
 import { useTheme } from '../context/ThemeContext';
@@ -10,12 +10,17 @@ import { analytics } from '../services/analyticsService';
 
 interface Props {
   meditation: Meditation;
+  options?: {
+    gentleStart: boolean;
+    focusMode: boolean;
+    tone: 'calm' | 'focus' | 'energy';
+  };
   onBack: () => void;
 }
 
 type PlaybackStatus = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'error' | 'completed';
 
-export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
+export const MeditationPlaybackScreen = ({ meditation, options, onBack }: Props) => {
   const { currentTheme } = useTheme();
   const { userProfile, updateMeditationProgress, completeMeditation } = useUserProfile();
   const { showToast } = useToast();
@@ -31,8 +36,19 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
   });
   const [breathState, setBreathState] = useState<'Inhale' | 'Hold' | 'Exhale'>('Inhale');
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showFocusReminder, setShowFocusReminder] = useState(false);
 
   const isAudio = meditation.mediaType === 'audio' && !!meditation.mediaUrl;
+
+  // Focus Mode Reminder
+  useEffect(() => {
+    if (options?.focusMode) {
+      const timer = setTimeout(() => {
+        setShowFocusReminder(true);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [options?.focusMode]);
 
   useEffect(() => {
     analytics.trackEvent({ 
@@ -51,7 +67,6 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
       : meditation.durationMinutes;
 
     completeMeditation(meditation.id, duration);
-    // showToast('Meditation completed. You feel more centered.', 'success'); // Replaced by modal
     analytics.trackEvent({ 
       name: 'meditation_completed', 
       properties: { 
@@ -74,19 +89,26 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
     setStatus('loading');
     const audio = new Audio(meditation.mediaUrl);
     audioRef.current = audio;
-    audio.preload = 'metadata';
+    audio.preload = 'auto'; // Use auto for better stability
 
     const onLoadedMetadata = () => {
-      // Restore position safely
+      // Restore position safely - only once on mount
       const existing = (userProfile?.meditationProgress || []).find(p => p.meditationId === meditation.id);
-      if (existing && existing.lastPositionSeconds) {
+      if (existing && existing.lastPositionSeconds && audio.currentTime === 0) {
         const safePosition = Math.min(existing.lastPositionSeconds, audio.duration - 1);
         audio.currentTime = Math.max(0, safePosition);
       }
       setStatus('ready');
     };
 
-    const onError = () => setStatus('error');
+    const onCanPlay = () => {
+      if (status === 'loading') setStatus('ready');
+    };
+
+    const onError = (e: any) => {
+      console.error('Audio error:', e);
+      setStatus('error');
+    };
     
     const onTimeUpdate = () => {
       if (audio.duration && !isCompletedRef.current) {
@@ -99,52 +121,129 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
       handleComplete();
     };
 
+    const onPlay = () => setStatus('playing');
+    const onPause = () => {
+      if (!isCompletedRef.current) setStatus('paused');
+    };
+
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('canplay', onCanPlay);
     audio.addEventListener('error', onError);
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('ended', onEnded);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
 
     return () => {
       audio.pause();
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('error', onError);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
       audioRef.current = null;
     };
-  }, [meditation.id, meditation.mediaUrl, isAudio, userProfile.meditationProgress, handleComplete]);
+  }, [meditation.id, meditation.mediaUrl, isAudio, handleComplete]);
 
-  // Sync Play/Pause state with Audio element
+  // Gentle Start Implementation
   useEffect(() => {
-    if (!isAudio || !audioRef.current || status === 'error' || status === 'completed') return;
-
-    if (status === 'playing') {
-      audioRef.current.play().catch(() => setStatus('error'));
-    } else if (status === 'paused' || status === 'ready') {
-      audioRef.current.pause();
+    if (options?.gentleStart && status === 'playing' && audioRef.current && audioRef.current.currentTime < 30) {
+      const audio = audioRef.current;
+      audio.volume = 0;
+      
+      let fadeInterval = setInterval(() => {
+        if (audio.volume < 1) {
+          audio.volume = Math.min(1, audio.volume + 0.05);
+        } else {
+          clearInterval(fadeInterval);
+        }
+      }, 1500); // 30s total fade (0.05 * 20 steps * 1.5s = 30s)
+      
+      return () => clearInterval(fadeInterval);
+    } else if (audioRef.current) {
+      audioRef.current.volume = 1;
     }
-  }, [status, isAudio]);
+  }, [status, options?.gentleStart]);
 
-  // Simulation Progress Logic
+  // Sync Play/Pause state with Audio element - Simplified to avoid loops
+  const handleTogglePlay = () => {
+    if (status === 'loading' || status === 'error') return;
+    
+    if (status === 'completed') {
+      handleReset();
+      // Use requestAnimationFrame to ensure state has settled
+      requestAnimationFrame(() => {
+        if (isAudio && audioRef.current) {
+          audioRef.current.play().catch((err) => {
+            console.error('Playback failed after reset:', err);
+            setStatus('error');
+          });
+        } else {
+          setStatus('playing');
+        }
+      });
+      return;
+    }
+
+    if (isAudio && audioRef.current) {
+      if (audioRef.current.paused) {
+        audioRef.current.play().catch(() => setStatus('error'));
+      } else {
+        audioRef.current.pause();
+      }
+    } else {
+      setStatus(prev => prev === 'playing' ? 'paused' : 'playing');
+    }
+
+    if (status !== 'playing') {
+      analytics.trackEvent({ 
+        name: 'meditation_started', 
+        properties: { meditationId: meditation.id, meditationTitle: meditation.title } 
+      });
+    }
+  };
+
+  // Simulation Progress Logic - More stable
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (!isAudio && status === 'playing' && !isCompletedRef.current) {
-      interval = setInterval(() => {
+    let lastTime = performance.now();
+    let frameId: number;
+
+    const tick = (now: number) => {
+      if (!isAudio && status === 'playing' && !isCompletedRef.current) {
+        const deltaTime = now - lastTime;
+        lastTime = now;
+
         setProgress((prev) => {
-          const next = prev + 0.1; // Slower, more precise increment
+          const totalSeconds = meditation.durationMinutes * 60;
+          const increment = (deltaTime / 1000 / totalSeconds) * 100;
+          const next = prev + increment;
+          
           if (next >= 100) {
             handleComplete();
             return 100;
           }
           return next;
         });
-      }, 100);
-    }
-    return () => clearInterval(interval);
-  }, [status, isAudio, handleComplete]);
+        frameId = requestAnimationFrame(tick);
+      }
+    };
 
-  // Breathing Animation Logic
+    if (!isAudio && status === 'playing') {
+      frameId = requestAnimationFrame(tick);
+    }
+
+    return () => cancelAnimationFrame(frameId);
+  }, [status, isAudio, handleComplete, meditation.durationMinutes]);
+
+  // Breathing Animation Logic - Only active when playing
   useEffect(() => {
+    if (status !== 'playing') {
+      setBreathState('Inhale');
+      return;
+    }
+
     const breathInterval = setInterval(() => {
       setBreathState((prev) => {
         if (prev === 'Inhale') return 'Hold';
@@ -153,7 +252,7 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
       });
     }, 4000);
     return () => clearInterval(breathInterval);
-  }, []);
+  }, [status]);
 
   const lastSyncedProgress = useRef<number>(0);
   const lastSyncedTime = useRef<number>(0);
@@ -189,6 +288,7 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
 
   const handleReset = () => {
     if (isAudio && audioRef.current) {
+      audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
     isCompletedRef.current = false;
@@ -196,25 +296,12 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
     setStatus('ready');
   };
 
-  const handleTogglePlay = () => {
-    if (status === 'loading' || status === 'error') return;
-    if (status === 'completed') {
-      handleReset();
-      setStatus('playing');
-      analytics.trackEvent({ 
-        name: 'meditation_started', 
-        properties: { meditationId: meditation.id, meditationTitle: meditation.title } 
-      });
-      return;
+  const handleSkip = (seconds: number) => {
+    if (isAudio && audioRef.current) {
+      audioRef.current.currentTime = Math.max(0, Math.min(audioRef.current.duration, audioRef.current.currentTime + seconds));
+    } else if (!isAudio) {
+      setProgress(prev => Math.max(0, Math.min(100, prev + (seconds / (meditation.durationMinutes * 60)) * 100)));
     }
-    const nextStatus = status === 'playing' ? 'paused' : 'playing';
-    if (nextStatus === 'playing') {
-      analytics.trackEvent({ 
-        name: 'meditation_started', 
-        properties: { meditationId: meditation.id, meditationTitle: meditation.title } 
-      });
-    }
-    setStatus(nextStatus);
   };
 
   const isPlaying = status === 'playing';
@@ -228,8 +315,22 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
       initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
-      className={`fixed inset-0 z-40 flex flex-col transition-colors duration-300 ${isDark ? 'bg-[#0F1115]' : 'bg-[#F7F7F8]'}`}
+      className={`fixed inset-0 z-40 flex flex-col transition-colors duration-1000 overflow-hidden ${isDark ? 'bg-[#0F1115]' : 'bg-[#F7F7F8]'}`}
     >
+      {/* Immersive Background Gradient */}
+      <motion.div 
+        animate={{ 
+          opacity: isPlaying ? [0.05, 0.15, 0.05] : 0.05,
+          scale: isPlaying ? [1, 1.1, 1] : 1
+        }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        className={`absolute inset-0 pointer-events-none z-[1] ${
+          isDark 
+            ? 'bg-gradient-to-tr from-[#8B9CFF]/20 via-transparent to-[#8B9CFF]/10' 
+            : 'bg-gradient-to-tr from-[#5C6AC4]/10 via-transparent to-[#5C6AC4]/5'
+        }`}
+      />
+
       <SessionCompleteModal 
         isOpen={showCompleteModal}
         onClose={() => {
@@ -239,7 +340,46 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
         meditationTitle={meditation.title}
         durationMinutes={sessionDuration}
       />
-      <div className="pt-16 pb-10 px-6 flex flex-col h-full max-w-md mx-auto w-full">
+
+      {/* Focus Mode Subtle Reminder */}
+      <AnimatePresence>
+        {showFocusReminder && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-20 left-6 right-6 z-50"
+          >
+            <div className={`p-4 rounded-2xl border flex items-center justify-between shadow-lg backdrop-blur-md ${
+              isDark ? 'bg-[#1A1D24]/90 border-white/10' : 'bg-white/90 border-black/5'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                  isDark ? 'bg-[#8B9CFF]/20 text-[#8B9CFF]' : 'bg-[#5C6AC4]/10 text-[#5C6AC4]'
+                }`}>
+                  <BellOff size={16} />
+                </div>
+                <div>
+                  <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
+                    Focus Mode Active
+                  </p>
+                  <p className={`text-[9px] font-medium opacity-60 ${isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'}`}>
+                    Silence notifications for a better experience
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowFocusReminder(false)}
+                className={`p-1.5 rounded-full transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
+              >
+                <X size={14} className="opacity-40" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="pt-16 pb-10 px-6 flex flex-col h-full max-w-md mx-auto w-full relative z-[2]">
         {/* Header */}
         <div className="flex items-center justify-between mb-12">
           <button 
@@ -253,12 +393,13 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
           </button>
           <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9CA3AF] opacity-80' : 'text-[#4B5563] opacity-90'}`}>
             {status === 'completed' ? 'Session Finished' : isAudio ? 'Audio Session' : 'Mindful Simulation'}
+            {options?.tone && ` • ${options.tone}`}
           </span>
           <div className="w-10" aria-hidden="true" />
         </div>
 
         {/* Meditation Info */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <h1 className={`text-3xl font-bold tracking-tight mb-2 ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
             {meditation.title}
           </h1>
@@ -267,9 +408,19 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
               With {meditation.instructor}
             </p>
           )}
-          <p className={`text-sm font-bold ${isDark ? 'text-[#9CA3AF] opacity-80' : 'text-[#4B5563] opacity-90'}`}>
-            {meditation.durationMinutes} min Session
-          </p>
+          <div className="flex items-center justify-center gap-3">
+            <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9CA3AF] opacity-80' : 'text-[#4B5563] opacity-90'}`}>
+              {meditation.durationMinutes} min Session
+            </p>
+            <div className={`w-1 h-1 rounded-full ${isDark ? 'bg-white/20' : 'bg-black/10'}`} />
+            <button 
+              onClick={handleReset}
+              className={`text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-1 transition-colors ${isDark ? 'text-[#9CA3AF] hover:text-[#8B9CFF]' : 'text-[#4B5563] hover:text-[#5C6AC4]'}`}
+            >
+              <RotateCcw size={10} />
+              Restart
+            </button>
+          </div>
         </div>
 
         {/* Visualizer */}
@@ -313,6 +464,18 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
 
         {/* Controls */}
         <div className="px-4">
+          {/* Time Remaining */}
+          <div className="flex justify-between items-center mb-4 px-1">
+            <span className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'}`}>
+              {Math.floor((progress / 100) * sessionDuration * 60 / 60)}:
+              {String(Math.floor(((progress / 100) * sessionDuration * 60) % 60)).padStart(2, '0')}
+            </span>
+            <span className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'}`}>
+              -{Math.floor(((100 - progress) / 100) * sessionDuration * 60 / 60)}:
+              {String(Math.floor((((100 - progress) / 100) * sessionDuration * 60) % 60)).padStart(2, '0')}
+            </span>
+          </div>
+
           {/* Progress Bar */}
           <div 
             className={`w-full h-1.5 rounded-full mb-10 overflow-hidden ${isDark ? 'bg-white/10' : 'bg-black/10'}`}
@@ -329,7 +492,7 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
             />
           </div>
 
-          <div className="flex items-center justify-center gap-12">
+          <div className="flex items-center justify-center gap-8">
             {status === 'completed' ? (
               <motion.button
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -344,11 +507,12 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
             ) : (
               <>
                 <button 
-                  onClick={handleReset}
-                  aria-label="Restart meditation"
-                  className={`transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 outline-none ${isDark ? 'text-[#9CA3AF] hover:text-[#F3F4F6]' : 'text-[#4B5563] hover:text-[#111111]'}`}
+                  onClick={() => handleSkip(-15)}
+                  disabled={status === 'loading'}
+                  aria-label="Skip back 15 seconds"
+                  className={`transition-colors active:scale-90 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 outline-none ${isDark ? 'text-[#9CA3AF] hover:text-[#F3F4F6]' : 'text-[#4B5563] hover:text-[#111111]'}`}
                 >
-                  <RotateCcw size={24} />
+                  <SkipBack size={24} />
                 </button>
                 
                 <button 
@@ -362,7 +526,14 @@ export const MeditationPlaybackScreen = ({ meditation, onBack }: Props) => {
                   {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
                 </button>
 
-                <div className="w-6" aria-hidden="true" />
+                <button 
+                  onClick={() => handleSkip(15)}
+                  disabled={status === 'loading'}
+                  aria-label="Skip forward 15 seconds"
+                  className={`transition-colors active:scale-90 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 outline-none ${isDark ? 'text-[#9CA3AF] hover:text-[#F3F4F6]' : 'text-[#4B5563] hover:text-[#111111]'}`}
+                >
+                  <SkipForward size={24} />
+                </button>
               </>
             )}
           </div>

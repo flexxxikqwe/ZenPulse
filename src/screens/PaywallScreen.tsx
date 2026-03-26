@@ -64,7 +64,7 @@ export const PaywallScreen = ({ onClose }: Props) => {
       initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 50 }}
-      className={`fixed inset-0 z-50 flex flex-col overflow-y-auto no-scrollbar transition-colors duration-300 ${isDark ? 'bg-[#0F1115]' : 'bg-[#F7F7F8]'}`}
+      className={`fixed inset-0 z-[100] flex flex-col overflow-y-auto no-scrollbar transition-colors duration-300 ${isDark ? 'bg-[#0F1115]' : 'bg-[#F7F7F8]'}`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="paywall-title"

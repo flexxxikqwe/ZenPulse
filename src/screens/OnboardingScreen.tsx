@@ -129,7 +129,7 @@ export const OnboardingScreen = () => {
           <p className={`text-center text-sm font-medium italic ${
             isDark ? 'text-[#9CA3AF]' : 'text-[#6B7280]'
           }`}>
-            You can always change this later in settings.
+            You can adjust your goals anytime in settings.
           </p>
         </div>
       )

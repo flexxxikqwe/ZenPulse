@@ -19,6 +19,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useUserProfile } from '../context/UserProfileContext';
 import { useToast } from '../components/ToastProvider';
 import { accountService } from '../services/accountService';
+import { subscriptionService } from '../services/subscriptionService';
 
 interface Props {
   onBack: () => void;
@@ -90,6 +91,7 @@ export const SettingsScreen = ({ onBack }: Props) => {
   const isDark = currentTheme === 'dark';
   const shouldReduceMotion = useReducedMotion();
   const [confirmAction, setConfirmAction] = useState<'reset' | 'delete' | null>(null);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   const handleMockAction = (action: string) => {
     showToast(`${action.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} will be available soon.`, 'info');
@@ -158,13 +160,13 @@ export const SettingsScreen = ({ onBack }: Props) => {
         <SettingsRow 
           icon={<CreditCard size={20} />}
           title="Manage Subscription"
-          subtitle="View and change your plan"
-          onClick={() => handleMockAction('manage_subscription')}
+          subtitle={subscriptionService.getSubscriptionLabel(userProfile)}
+          onClick={() => setShowSubscriptionModal(true)}
         />
         <SettingsRow 
           icon={<RefreshCcw size={20} />}
           title="Restore Purchases"
-          subtitle="Recover previous transactions"
+          subtitle="Restore your previous purchases"
           onClick={handleRestore}
         />
 
@@ -173,7 +175,7 @@ export const SettingsScreen = ({ onBack }: Props) => {
         <SettingsRow 
           icon={<HelpCircle size={20} />}
           title="Contact Support"
-          subtitle="Get help with your account"
+          subtitle="Get help or share feedback"
           onClick={() => handleMockAction('contact_support')}
         />
 
@@ -209,7 +211,7 @@ export const SettingsScreen = ({ onBack }: Props) => {
         {/* Version Info */}
         <div className="mt-12 pb-8 text-center">
           <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isDark ? 'text-[#9CA3AF] opacity-60' : 'text-[#4B5563] opacity-80'}`}>
-            ZenPulse v1.2.4 (Build 108)
+            ZenPulse v1.3.0 (Beta)
           </p>
           <p className={`text-[9px] font-medium mt-1 ${isDark ? 'text-[#9CA3AF] opacity-40' : 'text-[#4B5563] opacity-60'}`}>
             Made with mindfulness in London
@@ -267,6 +269,195 @@ export const SettingsScreen = ({ onBack }: Props) => {
           </motion.div>
         </div>
       )}
+
+      {/* Subscription Management Modal */}
+      {showSubscriptionModal && (
+        <ManageSubscriptionModal 
+          onClose={() => setShowSubscriptionModal(false)}
+          isDark={isDark}
+          shouldReduceMotion={shouldReduceMotion}
+        />
+      )}
     </motion.div>
+  );
+};
+
+interface ManageSubscriptionModalProps {
+  onClose: () => void;
+  isDark: boolean;
+  shouldReduceMotion: boolean;
+}
+
+const ManageSubscriptionModal = ({ onClose, isDark, shouldReduceMotion }: ManageSubscriptionModalProps) => {
+  const { userProfile, cancelSubscription, reactivateSubscription, changeSubscriptionPlan, upgradeSubscription, setSubscriptionNone } = useUserProfile();
+  const { showToast } = useToast();
+  const sub = userProfile.subscription;
+  const isPremium = subscriptionService.isPremium(userProfile);
+
+  const handleCancel = () => {
+    cancelSubscription();
+    showToast('Auto-renewal turned off.', 'info');
+  };
+
+  const handleReactivate = () => {
+    reactivateSubscription();
+    showToast('Auto-renewal turned on.', 'success');
+  };
+
+  const handleChangePlan = (plan: 'monthly' | 'yearly') => {
+    changeSubscriptionPlan(plan);
+    showToast(`Plan changed to ${plan}.`, 'success');
+  };
+
+  const handleUpgrade = (plan: 'monthly' | 'yearly') => {
+    upgradeSubscription(plan);
+    showToast(`Upgraded to ${plan} Premium.`, 'success');
+  };
+
+  const handleSetNone = () => {
+    setSubscriptionNone();
+    showToast('Subscription removed (Free mode).', 'info');
+  };
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return 'N/A';
+    return new Date(dateStr).toLocaleDateString(undefined, { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+    >
+      <motion.div 
+        initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className={`w-full max-w-sm rounded-[32px] overflow-hidden border shadow-2xl ${
+          isDark ? 'bg-[#1A1D24] border-white/10' : 'bg-white border-black/5'
+        }`}
+      >
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className={`text-lg font-bold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
+              Subscription
+            </h3>
+            <button 
+              onClick={onClose}
+              className={`p-2 rounded-full ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
+            >
+              <X size={20} className="opacity-50" />
+            </button>
+          </div>
+
+          {/* Demo Control Center Header */}
+          <div className={`mb-6 p-3 rounded-2xl border border-dashed ${isDark ? 'border-[#8B9CFF]/30 bg-[#8B9CFF]/5' : 'border-[#5C6AC4]/30 bg-[#5C6AC4]/5'}`}>
+            <p className={`text-[9px] font-black uppercase tracking-widest text-center mb-1 ${isDark ? 'text-[#8B9CFF]' : 'text-[#5C6AC4]'}`}>
+              Beta Demo Controls
+            </p>
+            <div className="flex gap-2">
+              <button 
+                onClick={handleSetNone}
+                className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ${
+                  !isPremium 
+                    ? (isDark ? 'bg-[#8B9CFF] text-black' : 'bg-[#5C6AC4] text-white')
+                    : (isDark ? 'bg-white/5 text-[#9CA3AF]' : 'bg-black/5 text-[#4B5563]')
+                }`}
+              >
+                None
+              </button>
+              <button 
+                onClick={() => (isPremium && sub.currentPlan === 'monthly') ? null : (isPremium ? handleChangePlan('monthly') : handleUpgrade('monthly'))}
+                className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ${
+                  (isPremium && sub.currentPlan === 'monthly')
+                    ? (isDark ? 'bg-[#8B9CFF] text-black' : 'bg-[#5C6AC4] text-white')
+                    : (isDark ? 'bg-white/5 text-[#9CA3AF]' : 'bg-black/5 text-[#4B5563]')
+                }`}
+              >
+                Monthly
+              </button>
+              <button 
+                onClick={() => (isPremium && sub.currentPlan === 'yearly') ? null : (isPremium ? handleChangePlan('yearly') : handleUpgrade('yearly'))}
+                className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ${
+                  (isPremium && sub.currentPlan === 'yearly')
+                    ? (isDark ? 'bg-[#8B9CFF] text-black' : 'bg-[#5C6AC4] text-white')
+                    : (isDark ? 'bg-white/5 text-[#9CA3AF]' : 'bg-black/5 text-[#4B5563]')
+                }`}
+              >
+                Yearly
+              </button>
+            </div>
+          </div>
+
+          <div className={`p-6 rounded-3xl mb-8 ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+            <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${isDark ? 'text-[#9CA3AF]' : 'text-[#6B7280]'}`}>
+              Current Plan
+            </p>
+            <p className={`text-xl font-bold mb-4 ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
+              {subscriptionService.getSubscriptionLabel(userProfile)}
+            </p>
+            
+            {isPremium ? (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className={`text-xs font-medium ${isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'}`}>
+                    {sub.autoRenew ? 'Renews on' : 'Expires on'}
+                  </span>
+                  <span className={`text-xs font-bold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
+                    {formatDate(sub.autoRenew ? sub.renewsAt : sub.expiresAt)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className={`text-xs font-medium ${isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'}`}>
+                    Auto-renew
+                  </span>
+                  <span className={`text-xs font-bold ${sub.autoRenew ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {sub.autoRenew ? 'On' : 'Off'}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className={`text-xs font-medium ${isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'}`}>
+                Subscribe to unlock all features.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {isPremium && (
+              <>
+                {sub.autoRenew ? (
+                  <button 
+                    onClick={handleCancel}
+                    className="w-full py-4 rounded-2xl bg-red-500/10 text-red-500 font-bold text-sm active:scale-[0.98] transition-all"
+                  >
+                    Cancel Subscription
+                  </button>
+                ) : (
+                  <button 
+                    onClick={handleReactivate}
+                    className="w-full py-4 rounded-2xl bg-emerald-500 text-white font-bold text-sm active:scale-[0.98] transition-all"
+                  >
+                    Reactivate Subscription
+                  </button>
+                )}
+              </>
+            )}
+            {!isPremium && (
+              <button 
+                onClick={() => handleUpgrade('monthly')}
+                className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-sm active:scale-[0.98] transition-all"
+              >
+                Get Premium Access
+              </button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </div>
   );
 };

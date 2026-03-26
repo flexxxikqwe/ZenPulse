@@ -21,7 +21,7 @@ export type AnalyticsEvent =
   | { name: 'mood_check_failed'; properties: { error: string } }
   | { name: 'filter_toggled'; properties: { filterType: string; value: string } }
   | { name: 'filters_cleared' }
-  | { name: 'library_mode_switched'; properties: { mode: 'browse' | 'saved' } }
+  | { name: 'library_mode_switched'; properties: { mode: 'explore' | 'saved' } }
   | { name: 'search_performed'; properties: { query: string } };
 
 class AnalyticsService {

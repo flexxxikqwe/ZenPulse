@@ -19,8 +19,8 @@ export const AppNavigator = () => {
   const [showMood, setShowMood] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [libraryViewMode, setLibraryViewMode] = useState<'browse' | 'saved'>('browse');
-  const [selectedMeditation, setSelectedMeditation] = useState<Meditation | null>(null);
+  const [libraryViewMode, setLibraryViewMode] = useState<'explore' | 'saved'>('explore');
+  const [selectedMeditation, setSelectedMeditation] = useState<{meditation: Meditation, options: any} | null>(null);
   const [detailedMeditation, setDetailedMeditation] = useState<Meditation | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [allMeditations, setAllMeditations] = useState<Meditation[]>([]);
@@ -49,7 +49,10 @@ export const AppNavigator = () => {
     }
   }, [allMeditations]);
 
-  const handleOpenPaywall = useCallback(() => setShowPaywall(true), []);
+  const handleOpenPaywall = useCallback(() => {
+    setDetailedMeditation(null);
+    setShowPaywall(true);
+  }, []);
   const handleClosePaywall = useCallback(() => setShowPaywall(false), []);
   const handleOpenMood = useCallback(() => setShowMood(true), []);
   const handleCloseMood = useCallback(() => setShowMood(false), []);
@@ -62,9 +65,9 @@ export const AppNavigator = () => {
     setShowProfile(false);
   }, []);
   const handleSelectMeditation = useCallback((meditation: Meditation) => setDetailedMeditation(meditation), []);
-  const handleStartSession = useCallback((meditation: Meditation) => {
+  const handleStartSession = useCallback((meditation: Meditation, options: any) => {
     setDetailedMeditation(null);
-    setSelectedMeditation(meditation);
+    setSelectedMeditation({ meditation, options });
   }, []);
   const handleCloseDetail = useCallback(() => setDetailedMeditation(null), []);
   const handleClosePlayback = useCallback(() => setSelectedMeditation(null), []);
@@ -105,7 +108,8 @@ export const AppNavigator = () => {
           <AnimatePresence>
             {selectedMeditation && (
               <MeditationPlaybackScreen 
-                meditation={selectedMeditation} 
+                meditation={selectedMeditation.meditation} 
+                options={selectedMeditation.options}
                 onBack={handleClosePlayback} 
               />
             )}
