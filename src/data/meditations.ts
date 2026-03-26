@@ -23,7 +23,7 @@ export interface Meditation {
   contentSource?: string;
 }
 
-const ASSET_BASE_URL = "https://zenpulse.public.blob.vercel-storage.com/audio";
+const ASSET_BASE_URL = "https://5ybaoh0byfbwa23f.public.blob.vercel-storage.com";
 
 export const meditations: Meditation[] = [
   { 
