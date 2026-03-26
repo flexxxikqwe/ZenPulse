@@ -17,7 +17,6 @@ interface MeditationDetailViewProps {
 export interface SessionOptions {
   gentleStart: boolean;
   focusMode: boolean;
-  tone: 'calm' | 'focus' | 'energy';
 }
 
 export const MeditationDetailView = ({ 
@@ -37,8 +36,7 @@ export const MeditationDetailView = ({
 
   const [sessionOptions, setSessionOptions] = React.useState<SessionOptions>({
     gentleStart: true,
-    focusMode: true,
-    tone: 'calm'
+    focusMode: true
   });
 
   const handleToggleFavorite = () => {
@@ -60,10 +58,6 @@ export const MeditationDetailView = ({
 
   const toggleFocusMode = () => {
     setSessionOptions(prev => ({ ...prev, focusMode: !prev.focusMode }));
-  };
-
-  const setTone = (tone: SessionOptions['tone']) => {
-    setSessionOptions(prev => ({ ...prev, tone }));
   };
 
   return (
@@ -183,28 +177,6 @@ export const MeditationDetailView = ({
             </h2>
             
             <div className="space-y-6">
-              {/* Tone Selection */}
-              <div>
-                <label className={`text-[9px] font-black uppercase tracking-widest block mb-3 ${isDark ? 'text-[#F3F4F6]' : 'text-[#111111]'}`}>
-                  Session Tone
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['calm', 'focus', 'energy'] as const).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTone(t)}
-                      className={`py-2 rounded-xl text-[8px] font-black uppercase tracking-tighter transition-all border ${
-                        sessionOptions.tone === t
-                          ? (isDark ? 'bg-[#8B9CFF] text-black border-[#8B9CFF]' : 'bg-[#5C6AC4] text-white border-[#5C6AC4]')
-                          : (isDark ? 'bg-white/5 text-[#9CA3AF] border-white/10' : 'bg-black/5 text-[#4B5563] border-black/5')
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Gentle Start Toggle */}
               <div className="flex items-center justify-between">
                 <div>

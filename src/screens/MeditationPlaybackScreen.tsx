@@ -13,7 +13,6 @@ interface Props {
   options?: {
     gentleStart: boolean;
     focusMode: boolean;
-    tone: 'calm' | 'focus' | 'energy';
   };
   onBack: () => void;
 }
@@ -29,16 +28,19 @@ export const MeditationPlaybackScreen = ({ meditation, options, onBack }: Props)
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isCompletedRef = useRef(false);
+  const hasFadedInRef = useRef(false);
   const [status, setStatus] = useState<PlaybackStatus>('idle');
-  const [progress, setProgress] = useState(() => {
+  const [currentTime, setCurrentTime] = useState(() => {
     const existing = (userProfile?.meditationProgress || []).find(p => p.meditationId === meditation.id);
-    return existing ? (existing.progressPercent || 0) : 0;
+    return existing ? (existing.lastPositionSeconds || 0) : 0;
   });
+  const [duration, setDuration] = useState(meditation.durationMinutes * 60);
   const [breathState, setBreathState] = useState<'Inhale' | 'Hold' | 'Exhale'>('Inhale');
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showFocusReminder, setShowFocusReminder] = useState(false);
 
   const isAudio = meditation.mediaType === 'audio' && !!meditation.mediaUrl;
+  const progress = (currentTime / duration) * 100;
 
   // Focus Mode Reminder
   useEffect(() => {
@@ -87,16 +89,21 @@ export const MeditationPlaybackScreen = ({ meditation, options, onBack }: Props)
     }
 
     setStatus('loading');
-    const audio = new Audio(meditation.mediaUrl);
+    const audio = new Audio();
+    audio.crossOrigin = 'anonymous';
+    audio.loop = true;
+    audio.src = meditation.mediaUrl;
     audioRef.current = audio;
     audio.preload = 'auto'; // Use auto for better stability
 
     const onLoadedMetadata = () => {
+      setDuration(audio.duration);
       // Restore position safely - only once on mount
       const existing = (userProfile?.meditationProgress || []).find(p => p.meditationId === meditation.id);
       if (existing && existing.lastPositionSeconds && audio.currentTime === 0) {
         const safePosition = Math.min(existing.lastPositionSeconds, audio.duration - 1);
         audio.currentTime = Math.max(0, safePosition);
+        setCurrentTime(audio.currentTime);
       }
       setStatus('ready');
     };
@@ -112,8 +119,7 @@ export const MeditationPlaybackScreen = ({ meditation, options, onBack }: Props)
     
     const onTimeUpdate = () => {
       if (audio.duration && !isCompletedRef.current) {
-        const currentProgress = (audio.currentTime / audio.duration) * 100;
-        setProgress(currentProgress);
+        setCurrentTime(audio.currentTime);
       }
     };
 
@@ -149,20 +155,29 @@ export const MeditationPlaybackScreen = ({ meditation, options, onBack }: Props)
 
   // Gentle Start Implementation
   useEffect(() => {
-    if (options?.gentleStart && status === 'playing' && audioRef.current && audioRef.current.currentTime < 30) {
+    if (options?.gentleStart && status === 'playing' && audioRef.current && !hasFadedInRef.current) {
       const audio = audioRef.current;
-      audio.volume = 0;
       
+      // Only fade in if we are at the very beginning
+      if (audio.currentTime > 5) {
+        audio.volume = 1;
+        hasFadedInRef.current = true;
+        return;
+      }
+
+      audio.volume = 0;
       let fadeInterval = setInterval(() => {
         if (audio.volume < 1) {
           audio.volume = Math.min(1, audio.volume + 0.05);
         } else {
+          hasFadedInRef.current = true;
           clearInterval(fadeInterval);
         }
-      }, 1500); // 30s total fade (0.05 * 20 steps * 1.5s = 30s)
+      }, 1500); // 30s total fade
       
       return () => clearInterval(fadeInterval);
-    } else if (audioRef.current) {
+    } else if (audioRef.current && status === 'playing') {
+      // Ensure volume is up if we resumed or skipped past fade window
       audioRef.current.volume = 1;
     }
   }, [status, options?.gentleStart]);
@@ -215,14 +230,14 @@ export const MeditationPlaybackScreen = ({ meditation, options, onBack }: Props)
         const deltaTime = now - lastTime;
         lastTime = now;
 
-        setProgress((prev) => {
+        setCurrentTime((prev) => {
           const totalSeconds = meditation.durationMinutes * 60;
-          const increment = (deltaTime / 1000 / totalSeconds) * 100;
+          const increment = (deltaTime / 1000);
           const next = prev + increment;
           
-          if (next >= 100) {
+          if (next >= totalSeconds) {
             handleComplete();
-            return 100;
+            return totalSeconds;
           }
           return next;
         });
@@ -237,22 +252,16 @@ export const MeditationPlaybackScreen = ({ meditation, options, onBack }: Props)
     return () => cancelAnimationFrame(frameId);
   }, [status, isAudio, handleComplete, meditation.durationMinutes]);
 
-  // Breathing Animation Logic - Only active when playing
+  // Breathing Animation Logic - Synced with playback time
   useEffect(() => {
-    if (status !== 'playing') {
-      setBreathState('Inhale');
-      return;
-    }
+    const cycleTime = 12000; // 12s cycle: 4s inhale, 4s hold, 4s exhale
+    const ms = currentTime * 1000;
+    const phase = ms % cycleTime;
 
-    const breathInterval = setInterval(() => {
-      setBreathState((prev) => {
-        if (prev === 'Inhale') return 'Hold';
-        if (prev === 'Hold') return 'Exhale';
-        return 'Inhale';
-      });
-    }, 4000);
-    return () => clearInterval(breathInterval);
-  }, [status]);
+    if (phase < 4000) setBreathState('Inhale');
+    else if (phase < 8000) setBreathState('Hold');
+    else setBreathState('Exhale');
+  }, [currentTime]);
 
   const lastSyncedProgress = useRef<number>(0);
   const lastSyncedTime = useRef<number>(0);
@@ -266,17 +275,11 @@ export const MeditationPlaybackScreen = ({ meditation, options, onBack }: Props)
 
       // Sync if progress changed by > 2% or every 10 seconds
       if (progressDiff > 2 || timeDiff > 10000) {
-        const duration = isAudio && audioRef.current?.duration 
-          ? audioRef.current.duration / 60 
-          : (meditation.durationMinutes || 10);
-
         updateMeditationProgress({
           meditationId: meditation.id,
           meditationTitle: meditation.title || 'Untitled Session',
           progressPercent: Math.round(progress),
-          lastPositionSeconds: isAudio && audioRef.current 
-            ? Math.round(audioRef.current.currentTime) 
-            : Math.round(((progress || 0) / 100) * (duration || 10) * 60),
+          lastPositionSeconds: Math.round(currentTime),
           completed: false, // Handled by handleComplete
         });
         
@@ -284,7 +287,7 @@ export const MeditationPlaybackScreen = ({ meditation, options, onBack }: Props)
         lastSyncedTime.current = now;
       }
     }
-  }, [progress, status, meditation.id, meditation.title, meditation.durationMinutes, isAudio, updateMeditationProgress]);
+  }, [progress, currentTime, status, meditation.id, meditation.title, updateMeditationProgress]);
 
   const handleReset = () => {
     if (isAudio && audioRef.current) {
@@ -292,15 +295,17 @@ export const MeditationPlaybackScreen = ({ meditation, options, onBack }: Props)
       audioRef.current.currentTime = 0;
     }
     isCompletedRef.current = false;
-    setProgress(0);
+    hasFadedInRef.current = false;
+    setCurrentTime(0);
     setStatus('ready');
   };
 
   const handleSkip = (seconds: number) => {
     if (isAudio && audioRef.current) {
       audioRef.current.currentTime = Math.max(0, Math.min(audioRef.current.duration, audioRef.current.currentTime + seconds));
+      setCurrentTime(audioRef.current.currentTime);
     } else if (!isAudio) {
-      setProgress(prev => Math.max(0, Math.min(100, prev + (seconds / (meditation.durationMinutes * 60)) * 100)));
+      setCurrentTime(prev => Math.max(0, Math.min(meditation.durationMinutes * 60, prev + seconds)));
     }
   };
 
@@ -393,7 +398,6 @@ export const MeditationPlaybackScreen = ({ meditation, options, onBack }: Props)
           </button>
           <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#9CA3AF] opacity-80' : 'text-[#4B5563] opacity-90'}`}>
             {status === 'completed' ? 'Session Finished' : isAudio ? 'Audio Session' : 'Mindful Simulation'}
-            {options?.tone && ` • ${options.tone}`}
           </span>
           <div className="w-10" aria-hidden="true" />
         </div>
@@ -467,12 +471,12 @@ export const MeditationPlaybackScreen = ({ meditation, options, onBack }: Props)
           {/* Time Remaining */}
           <div className="flex justify-between items-center mb-4 px-1">
             <span className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'}`}>
-              {Math.floor((progress / 100) * sessionDuration * 60 / 60)}:
-              {String(Math.floor(((progress / 100) * sessionDuration * 60) % 60)).padStart(2, '0')}
+              {Math.floor(currentTime / 60)}:
+              {String(Math.floor(currentTime % 60)).padStart(2, '0')}
             </span>
             <span className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-[#9CA3AF]' : 'text-[#4B5563]'}`}>
-              -{Math.floor(((100 - progress) / 100) * sessionDuration * 60 / 60)}:
-              {String(Math.floor((((100 - progress) / 100) * sessionDuration * 60) % 60)).padStart(2, '0')}
+              -{Math.floor(Math.max(0, duration - currentTime) / 60)}:
+              {String(Math.floor(Math.max(0, duration - currentTime) % 60)).padStart(2, '0')}
             </span>
           </div>
 
